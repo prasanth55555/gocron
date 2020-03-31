@@ -26,7 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"fmt"
 	//"github.com/jasonlvhit/gocron"
 )
 
@@ -71,11 +71,12 @@ type Job struct {
 
 	jobid string
 
+	timeZone string
 
 }
 
 // Create a new job with the time interval.
-func NewJob(intervel uint64,id string) *Job {
+func NewJob(intervel uint64,id string, timeZone string) *Job {
 	return &Job{
 		intervel,
 		"", "", "",
@@ -83,7 +84,7 @@ func NewJob(intervel uint64,id string) *Job {
 		time.Unix(0, 0), 0,
 		time.Sunday,
 		make(map[string]interface{}),
-		make(map[string]([]interface{})),id,
+		make(map[string]([]interface{})),id,timeZone,
 
 	}
 }
@@ -107,7 +108,7 @@ func (j *Job) run() (result []reflect.Value, err error) {
 		in[k] = reflect.ValueOf(param)
 	}
 	result = f.Call(in)
-	j.lastRun = time.Now()
+	j.lastRun = ReWriteLastTime(time.Now(), j.timeZone)
 	j.scheduleNextRun()
 	return
 }
@@ -170,9 +171,11 @@ func (j *Job) At(t string) *Job {
 
 	if j.unit == "days" {
 		if time.Now().After(mock) {
-			j.lastRun = mock
+			j.lastRun = ReWriteLastTime(mock,j.timeZone)
+			fmt.Println("[175] Last Run Changed with value ", j.lastRun)
 		} else {
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-1, hour, min, 0, 0, loc)
+			j.lastRun = ReWriteLastTime(time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-1, hour, min, 0, 0, loc), j.timeZone)
+			fmt.Println("[178] Last Run Changed with value ", j.lastRun)
 		}
 	} else if j.unit == "weeks" {
 		if j.startDay != time.Now().Weekday() || (time.Now().After(mock) && j.startDay == time.Now().Weekday()) {
@@ -180,9 +183,11 @@ func (j *Job) At(t string) *Job {
 			if i < 0 {
 				i = 7 + i
 			}
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), hour, min, 0, 0, loc)
+			j.lastRun = ReWriteLastTime(time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), hour, min, 0, 0, loc), j.timeZone)
+			fmt.Println("[187] Last Run Changed with value ", j.lastRun)
 		} else {
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-7, hour, min, 0, 0, loc)
+			j.lastRun = ReWriteLastTime(time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-7, hour, min, 0, 0, loc), j.timeZone)
+			fmt.Println("[190] Last Run Changed with value ", j.lastRun)
 		}
 	}
 	return j
@@ -190,22 +195,30 @@ func (j *Job) At(t string) *Job {
 
 //Compute the instant when this job should run next
 func (j *Job) scheduleNextRun() {
+	fmt.Println("scheduleNextRun")
 	if j.lastRun == time.Unix(0, 0) {
 		if j.unit == "weeks" {
 			i := time.Now().Weekday() - j.startDay
 			if i < 0 {
 				i = 7 + i
 			}
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), 0, 0, 0, 0, loc)
-
+			j.lastRun = ReWriteLastTime(time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), 0, 0, 0, 0, loc), j.timeZone)
+			fmt.Println("[207] Last Run Changed with value ", j.lastRun)
 		} else {
-			j.lastRun = time.Now()
+			j.lastRun = ReWriteLastTime(time.Now(), j.timeZone)
+			fmt.Println("[209] Last Run Changed with value ", j.lastRun)
 		}
 	}
 
 	if j.period != 0 {
-		// translate all the units to the Seconds
-		j.nextRun = j.lastRun.Add(j.period * time.Second)
+		if j.unit == "days" || j.unit == "weeks"{
+			//j.nextRun = j.lastRun.Add(j.period * time.Second)
+			j.nextRun = ReWriteTime(j.lastRun.Add(j.period * time.Second), j.timeZone, j.lastRun)
+			fmt.Println("[218] Next Run Changed with value ", j.lastRun)
+		} else {
+			j.nextRun = j.lastRun.Add(j.period * time.Second)
+			fmt.Println("[221] Next Run Changed with value ", j.lastRun)
+		}
 	} else {
 		switch j.unit {
 		case "minutes":
@@ -223,16 +236,50 @@ func (j *Job) scheduleNextRun() {
 		case "seconds":
 			j.period = time.Duration(j.interval)
 		}
-		j.nextRun = j.lastRun.Add(j.period * time.Second)
+		if j.unit == "days" || j.unit == "weeks"{
+			j.nextRun= ReWriteTime(j.lastRun.Add(j.period * time.Second), j.timeZone, j.lastRun)
+			fmt.Println("[243] Next Run Changed with value ", j.lastRun)
+		} else {
+			j.nextRun = j.lastRun.Add(j.period * time.Second)
+			fmt.Println("[245] Next Run Changed with value ", j.lastRun)
+		}
+
 	}
+}
+
+func ReWriteTime(NextRun time.Time, timeZone string, lastRun time.Time) (time.Time){
+	var constTimeZone = [4]string{"AST","WAT", "CAT", "IST"}
+	for _,val := range constTimeZone {
+		if val == timeZone {
+			return NextRun
+		}
+	}
+	_, month, _ := NextRun.Date()
+	if int(month) >= 3 && int(month) <=  11{
+		return NextRun.Add(time.Duration(-60) * time.Minute)
+	}
+	return NextRun
+}
+// nextRunItem := strings.Split(NextRun)
+
+func ReWriteLastTime(LastRun time.Time, timeZone string) (time.Time){
+	var constTimeZone = [4]string{"AST","WAT", "CAT", "IST"}
+	for _,val := range constTimeZone {
+		if val == timeZone {
+			return LastRun
+		}
+	}
+	_, month, _ := LastRun.Date()
+	if int(month) >= 3 && int(month) <  11{
+		return LastRun.Add(time.Duration(60) * time.Minute)
+	}
+	return LastRun
 }
 
 // NextScheduledTime returns the time of when this job is to run next
 func (j *Job) NextScheduledTime() time.Time {
 	return j.nextRun
 }
-
-// the follow functions set the job's unit with seconds,minutes,hours...
 
 // Set the unit with second
 func (j *Job) Second() (job *Job) {
@@ -427,8 +474,8 @@ func (s *Scheduler) NextRun() (*Job, time.Time) {
 }
 
 // Schedule a new periodic job
-func (s *Scheduler) Every(interval uint64,id string) *Job {
-	job := NewJob(interval,id)
+func (s *Scheduler) Every(interval uint64,id string, timeZone string) *Job {
+	job := NewJob(interval,id, timeZone)
 	s.jobs[s.size] = job
 	s.size++
 	return job
@@ -476,8 +523,8 @@ func (s *Scheduler) Remove(j interface{},jobid string)(bool) {
 		i++
 	}
 	if res==true{
-	s.size = s.size - 1
-}
+		s.size = s.size - 1
+	}
 	return res
 }
 
@@ -516,8 +563,8 @@ var defaultScheduler = NewScheduler()
 var jobs = defaultScheduler.jobs
 
 // Schedule a new periodic job
-func Every(interval uint64,id string) *Job {
-	return defaultScheduler.Every(interval,id)
+func Every(interval uint64,id string, timeZone string) *Job {
+	return defaultScheduler.Every(interval,id, timeZone)
 }
 
 // Run all jobs that are scheduled to run
