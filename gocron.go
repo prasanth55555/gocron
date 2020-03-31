@@ -213,12 +213,12 @@ func (j *Job) scheduleNextRun() {
 	if j.period != 0 {
 		if j.unit == "days" || j.unit == "weeks"{
 			//j.nextRun = j.lastRun.Add(j.period * time.Second)
-			j.nextRun = ReWriteTime(j.lastRun.Add(j.period * time.Second), j.timeZone, j.lastRun)
+		j.nextRun = ReWriteTime(j.lastRun.Add(j.period * time.Second), j.timeZone, j.lastRun)
 			fmt.Println("[218] Next Run Changed with value ", j.lastRun)
 		} else {
 			j.nextRun = j.lastRun.Add(j.period * time.Second)
 			fmt.Println("[221] Next Run Changed with value ", j.lastRun)
-		}
+			}
 	} else {
 		switch j.unit {
 		case "minutes":
@@ -242,9 +242,9 @@ func (j *Job) scheduleNextRun() {
 		} else {
 			j.nextRun = j.lastRun.Add(j.period * time.Second)
 			fmt.Println("[245] Next Run Changed with value ", j.lastRun)
-		}
-
-    }
+			}
+		
+	}
 }
 
 func ReWriteTime(NextRun time.Time, timeZone string, lastRun time.Time) (time.Time){
@@ -257,10 +257,10 @@ func ReWriteTime(NextRun time.Time, timeZone string, lastRun time.Time) (time.Ti
 	_, month, _ := NextRun.Date()
 	if int(month) >= 3 && int(month) <=  11{
 		return NextRun.Add(time.Duration(-60) * time.Minute)
+	} 
+		return NextRun
 	}
-	return NextRun
-}
-// nextRunItem := strings.Split(NextRun)
+	// nextRunItem := strings.Split(NextRun)
 
 func ReWriteLastTime(LastRun time.Time, timeZone string) (time.Time){
 	var constTimeZone = [4]string{"AST","WAT", "CAT", "IST"}
@@ -506,6 +506,7 @@ func (s *Scheduler) RunAllwithDelay(d int) {
 		time.Sleep(time.Duration(d))
 	}
 }
+
 // Remove specific job j
 func (s *Scheduler) Remove(j interface{},jobid string)(bool) {
 	i := 0
@@ -522,8 +523,8 @@ func (s *Scheduler) Remove(j interface{},jobid string)(bool) {
 		i++
 	}
 	if res==true{
-		s.size = s.size - 1
-	}
+	s.size = s.size - 1
+}
 	return res
 }
 
