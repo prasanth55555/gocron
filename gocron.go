@@ -506,7 +506,6 @@ func (s *Scheduler) RunAllwithDelay(d int) {
 		time.Sleep(time.Duration(d))
 	}
 }
-
 // Remove specific job j
 func (s *Scheduler) Remove(j interface{},jobid string)(bool) {
 	i := 0
