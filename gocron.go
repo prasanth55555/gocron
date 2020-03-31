@@ -244,7 +244,7 @@ func (j *Job) scheduleNextRun() {
 			fmt.Println("[245] Next Run Changed with value ", j.lastRun)
 		}
 
-	}
+    }
 }
 
 func ReWriteTime(NextRun time.Time, timeZone string, lastRun time.Time) (time.Time){
